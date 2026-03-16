@@ -6,7 +6,6 @@ Definitive implementation of Consensus Split-Bank Attention (CSA) as
 derived from the mTAM energy functional.  Every function is annotated
 with the corresponding LaTeX equation label.
 
-Ground-truth equations (tex/main_v07022026.tex & tex/appendix.tex):
 
   Adjacency (row-stochastic):
       Ā_{ab} = A_{ab} / d^{in}_a           [eq:abar_notation]
