@@ -6,10 +6,12 @@ Author: Andrea Ladiana
 This engine is used for ablation against CSA:
  - Each directed edge (a<-b) computes its own softmax p^{(a<-b)} over μ.
  - Layer update: z^{(a)} = sum_{(a<-b)} K^{(b)} p^{(a<-b)}.
- - Optional "decoupled" energy: E = sum_a 1/2||z^a||^2 - (1/β) * sum_{(a<-b)} lse(β z^a·K^b) + C_shift.
+ - Optional "decoupled" energy: E = sum_a 1/2||z^a||^2
+     - (1/β) * sum_{(a<-b)} lse(β z^a·K^b) + C_shift.
 """
 
 from __future__ import annotations
+
 import math
 from typing import Dict, List, Tuple
 
@@ -117,7 +119,11 @@ class DecoupledEngine(nn.Module):
                     f"expected ({batch_size}, {k_dim})."
                 )
 
-    def per_edge_logits(self, z_list: List[Tensor], K_list: List[Tensor]) -> Dict[Tuple[int, int], Tensor]:
+    def per_edge_logits(
+        self,
+        z_list: List[Tensor],
+        K_list: List[Tensor],
+    ) -> Dict[Tuple[int, int], Tensor]:
         # returns dict edge -> (B, K) logits
         z_batched = self._validate_inputs(z_list, K_list)
         out: Dict[Tuple[int, int], Tensor] = {}
@@ -127,7 +133,11 @@ class DecoupledEngine(nn.Module):
             out[(a, b)] = za @ Kb  # (B, K)
         return out
 
-    def per_edge_p(self, z_list: List[Tensor], K_list: List[Tensor]) -> Dict[Tuple[int, int], Tensor]:
+    def per_edge_p(
+        self,
+        z_list: List[Tensor],
+        K_list: List[Tensor],
+    ) -> Dict[Tuple[int, int], Tensor]:
         logits = self.per_edge_logits(z_list, K_list)
         return {e: torch.softmax(self.beta * S, dim=-1) for e, S in logits.items()}
 
@@ -229,13 +239,11 @@ class DecoupledEngine(nn.Module):
         p_last = None
         for _ in range(T):
             if log:
-                if logs is None:
-                    raise RuntimeError("Internal logging state was unexpectedly None.")
+                assert logs is not None
                 logs["E"].append(self.energy(z_work, K_list).detach().cpu())
             z_work, p_last = self.step(z_work, K_list, damping=damping, mode=mode)
             if log:
-                if logs is None:
-                    raise RuntimeError("Internal logging state was unexpectedly None.")
+                assert logs is not None
                 # stack p_edge in a dict of tensors for analysis
                 logs["p_edge"].append({e: p.detach().cpu() for e, p in p_last.items()})
         return z_work, p_last, logs

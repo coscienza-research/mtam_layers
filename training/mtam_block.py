@@ -34,15 +34,13 @@ Author: Andrea Ladiana
 
 from __future__ import annotations
 
-import math
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import torch
 import torch.nn as nn
 from torch import Tensor
 
-from mtam_layers.mtam import mTAM_Core, complete_graph
-
+from mtam_layers.mtam import complete_graph, mTAM_Core
 
 # ═══════════════════════════════════════════════════
 #  mTAM Block — Drop-in Multi-Modal Transformer Block

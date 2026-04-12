@@ -15,19 +15,18 @@ Author: Andrea Ladiana
 from __future__ import annotations
 
 import math
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from typing import List, Tuple
+from typing import Tuple
 
 import torch
 from torch import Tensor
-import torch.nn as nn
-import torch.nn.functional as F
 
-from mtam_layers.mtam import mTAM_Core, build_adjacency, complete_graph
 from mtam_layers.decoupled_engine import DecoupledEngine
 from mtam_layers.entropy_gated_consensus import EntropyGatedConsensus
+from mtam_layers.mtam import build_adjacency, complete_graph, mTAM_Core
 from mtam_layers.training.mtam_block import mTAMBlock, mTAMClassifier
 
 # ─── Helpers ────────────────────────────────────────
@@ -119,7 +118,6 @@ def test_chimera_elimination() -> bool:
     """All layers share the SAME consensus p (by construction)."""
     engine, Z, K = _random_setup(L=4, d=32, M=20, B=8, beta=6.0)
     Z_out, p, _ = engine.step(Z, K, damping=1.0)
-    mu_star = p.argmax(dim=-1)  # (B,)
     K_eff = engine.effective_keys(K)
     for a in range(engine.L):
         z_a_manual = torch.einsum("im, nm -> ni", K_eff[a], p)
@@ -240,7 +238,7 @@ def test_nans_robustness() -> bool:
         # Without NaNs in output
         if torch.isnan(Z_new).any() or torch.isnan(p).any():
             return False
-    except Exception as e:
+    except Exception:
         return False
     return True
 
@@ -279,8 +277,10 @@ def test_batch_scaling() -> bool:
     Z_out_100, p_100, _ = engine.step(Z_100, K)
     
     # All 100 batch outputs should be identical to the single 1-batch output
-    if not torch.allclose(Z_out_1, Z_out_100[0:1], atol=1e-4): return False
-    if not torch.allclose(p_1, p_100[0:1], atol=1e-4): return False
+    if not torch.allclose(Z_out_1, Z_out_100[0:1], atol=1e-4):
+        return False
+    if not torch.allclose(p_1, p_100[0:1], atol=1e-4):
+        return False
     return True
 
 # ─── Test 13: Decoupled Engine Forward Pass ────────
@@ -300,7 +300,8 @@ def test_decoupled_engine() -> bool:
         return False
         
     E = engine.energy(z_next, K_list)
-    if E.shape != (B,): return False
+    if E.shape != (B,):
+        return False
     return True
 
 
@@ -453,8 +454,10 @@ def test_training_block() -> bool:
     x_list = [torch.randn(B, n, requires_grad=True) for n in in_dims]
     
     x_out, p = block(x_list, return_consensus=True)
-    if p is None or p.shape != (B, M): return False
-    if len(x_out) != L: return False
+    if p is None or p.shape != (B, M):
+        return False
+    if len(x_out) != L:
+        return False
     
     # Check backprop
     loss = sum(x.sum() for x in x_out)
@@ -466,7 +469,8 @@ def test_training_block() -> bool:
         
     # Should have gradients on inputs
     for x in x_list:
-        if x.grad is None: return False
+        if x.grad is None:
+            return False
         
     return True
 
@@ -555,7 +559,10 @@ def run_all_tests() -> bool:
         ("Decoupled Engine Gradient Flow", test_decoupled_engine_gradient_flow),
         ("Decoupled Engine Validation", test_decoupled_engine_validation),
         ("Entropy-Gated: closed gate = CSA", test_entropy_gated_closed_reduces_to_csa),
-        ("Entropy-Gated: open gate follows local q", test_entropy_gated_open_tracks_local_posteriors),
+        (
+            "Entropy-Gated: open gate follows local q",
+            test_entropy_gated_open_tracks_local_posteriors,
+        ),
         ("Entropy-Gated: diagnostics consistency", test_entropy_gated_diagnostics_consistency),
         ("Training Block (Forward/Backward)", test_training_block),
         ("Classifier End-to-End", test_classifier),

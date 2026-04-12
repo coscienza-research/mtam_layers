@@ -13,6 +13,6 @@ architectures, following the same pattern as Modern Hopfield Layers
 (Ramsauer et al., 2020) for the single-modality case.
 """
 
-from .mtam_block import mTAMBlock, mTAMEncoder, mTAMClassifier
+from .mtam_block import mTAMBlock, mTAMClassifier, mTAMEncoder
 
 __all__ = ["mTAMBlock", "mTAMEncoder", "mTAMClassifier"]

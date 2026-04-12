@@ -267,8 +267,5 @@ class EntropyGatedConsensus:
                 traj["weighted_modal_variance"].append(diag.weighted_modal_variance.detach())
                 traj["dissent_upper_bound"].append(diag.dissent_upper_bound.detach())
                 traj["synergy"].append(diag.synergy.detach())
-
-        if last_step is None:
-            raise RuntimeError("Internal error: no EG-CSA step was executed.")
-
+            assert last_step is not None
         return Z, last_step, traj

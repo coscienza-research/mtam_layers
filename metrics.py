@@ -18,11 +18,11 @@ Shapes (batch-first unless noted):
 """
 
 from __future__ import annotations
-from typing import List, Tuple, Dict, Optional, Any
+
 from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 Tensor = torch.Tensor
 
@@ -140,7 +140,10 @@ def convergence_delta_z(z_hist: List[List[Tensor]]) -> Tensor:
         deltas.append(torch.stack(layer_deltas).mean())
     return torch.stack(deltas).mean()
 
-def cooperativity_index(contribs: Dict[Tuple[int,int], Tensor], mu_hat: Optional[Tensor] = None) -> Tensor:
+def cooperativity_index(
+    contribs: Dict[Tuple[int, int], Tensor],
+    mu_hat: Optional[Tensor] = None,
+) -> Tensor:
     """Compute a cooperativity index: for each batch element, measure how balanced the per-arc
     contributions are for the winning μ (or provided mu_hat).
     Returns scalar in [0,1], where 1 indicates perfectly balanced contributions across arcs.
