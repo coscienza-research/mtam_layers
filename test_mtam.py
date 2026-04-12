@@ -302,6 +302,59 @@ def test_decoupled_engine() -> bool:
     if E.shape != (B,): return False
     return True
 
+
+def test_decoupled_engine_gradient_flow() -> bool:
+    """Decoupled engine should remain differentiable for trainable ablations."""
+    torch.manual_seed(7)
+    edges = [(0, 1), (1, 0)]
+    engine = DecoupledEngine(edges, beta=1.5)
+    B, d, Kdim = 3, 12, 7
+
+    z_list = [
+        torch.randn(B, d, requires_grad=True),
+        torch.randn(B, d, requires_grad=True),
+    ]
+    K_list = [
+        torch.randn(d, Kdim, requires_grad=True),
+        torch.randn(d, Kdim, requires_grad=True),
+    ]
+
+    z_next, p_edge, _ = engine.forward(z_list, K_list, T=2, damping=1.0, mode="jacobi", log=False)
+    loss = sum((z ** 2).mean() for z in z_next) + sum((p ** 2).mean() for p in p_edge.values())
+    loss.backward()
+
+    for z in z_list:
+        if z.grad is None:
+            return False
+    for Kb in K_list:
+        if Kb.grad is None:
+            return False
+    return True
+
+
+def test_decoupled_engine_validation() -> bool:
+    """Decoupled engine should reject invalid damping and inconsistent dimensions."""
+    edges = [(0, 1), (1, 0)]
+    engine = DecoupledEngine(edges, beta=2.0)
+
+    z_list = [torch.randn(2, 8), torch.randn(2, 8)]
+    K_valid = [torch.randn(8, 4), torch.randn(8, 4)]
+
+    try:
+        _ = engine.step(z_list, K_valid, damping=0.0)
+        return False
+    except ValueError:
+        pass
+
+    K_invalid = [torch.randn(8, 4), torch.randn(7, 4)]
+    try:
+        _ = engine.step(z_list, K_invalid, damping=1.0)
+        return False
+    except ValueError:
+        pass
+
+    return True
+
 # ─── Test 14: Training Module (mTAM Block) ─────────
 
 def test_training_block() -> bool:
@@ -370,6 +423,8 @@ def run_all_tests() -> bool:
         ("Mixed Precisions & Device Support", test_dtype_stability),
         ("Scalability and Batch Sizes", test_batch_scaling),
         ("Decoupled Engine Check", test_decoupled_engine),
+        ("Decoupled Engine Gradient Flow", test_decoupled_engine_gradient_flow),
+        ("Decoupled Engine Validation", test_decoupled_engine_validation),
         ("Training Block (Forward/Backward)", test_training_block),
         ("Classifier End-to-End", test_classifier),
     ]
