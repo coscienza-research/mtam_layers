@@ -27,3 +27,16 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
+ignore_missing_imports = true
+files = [
+	"__init__.py",
+	"decoupled_engine.py",
+	"entropy_gated_consensus.py",
+	"metrics.py",
+	"mtam.py",
+	"training",
+]

@@ -13,7 +13,7 @@ This engine is used for ablation against CSA:
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -174,18 +174,20 @@ class DecoupledEngine(nn.Module):
         logits = self.per_edge_logits(z_list, K_list)
 
         # quadratic
-        quad = None
+        quad: Optional[Tensor] = None
         for a in range(self.L):
             za = z_batched[a]
             t = 0.5 * (za * za).sum(dim=-1)     # (B,)
             quad = t if quad is None else (quad + t)
 
         # sum of lse
-        lse_sum = None
+        lse_sum: Optional[Tensor] = None
         for S in logits.values():
             lse = torch.logsumexp(self.beta * S, dim=-1)  # (B,)
             lse_sum = lse if lse_sum is None else (lse_sum + lse)
 
+        assert quad is not None
+        assert lse_sum is not None
         E = quad - (1.0 / self.beta) * lse_sum
         if self.use_shift:
             # optional normalization term: (#edges / β) log K
@@ -230,13 +232,13 @@ class DecoupledEngine(nn.Module):
         damping: float = 1.0,
         mode: str = "jacobi",
         log: bool = False,
-    ):
+    ) -> Tuple[List[Tensor], Dict[Tuple[int, int], Tensor], Optional[Dict[str, List[object]]]]:
         if T < 1:
             raise ValueError(f"T must be >= 1, got {T}.")
 
         z_work = [z.clone() for z in self._validate_inputs(z_list, K_list)]
-        logs = {"E": [], "p_edge": []} if log else None
-        p_last = None
+        logs: Optional[Dict[str, List[object]]] = {"E": [], "p_edge": []} if log else None
+        p_last: Optional[Dict[Tuple[int, int], Tensor]] = None
         for _ in range(T):
             if log:
                 assert logs is not None
@@ -246,4 +248,5 @@ class DecoupledEngine(nn.Module):
                 assert logs is not None
                 # stack p_edge in a dict of tensors for analysis
                 logs["p_edge"].append({e: p.detach().cpu() for e, p in p_last.items()})
+        assert p_last is not None
         return z_work, p_last, logs

@@ -253,7 +253,7 @@ class mTAMEncoder(nn.Module):
         x_list : list of (B, N_a) — final modality embeddings
         all_p  : list of (B, M) consensus from each layer (if requested)
         """
-        all_p = [] if return_all_consensus else None
+        all_p: Optional[List[Tensor]] = [] if return_all_consensus else None
         for block in self.blocks:
             x_list, p = block(x_list, return_consensus=return_all_consensus)
             if all_p is not None and p is not None:
