@@ -406,6 +406,49 @@ def test_classifier() -> bool:
     return True
 
 
+# ─── Pytest Compatibility Layer ───────────────────
+
+# The suite is intentionally written in bool-returning style to support
+# script-level reporting (`python test_mtam.py`). Pytest expects test
+# functions to assert instead of returning bool, so we mark legacy tests
+# as non-collectable and expose assert-based wrappers.
+
+_LEGACY_BOOL_TESTS = [
+    test_row_stochastic,
+    test_energy_at_origin,
+    test_energy_monotone,
+    test_chimera_elimination,
+    test_gradient_consistency,
+    test_l1_reduction,
+    test_fixed_point,
+    test_effective_keys_matches_direct,
+    test_sparse_graph,
+    test_nans_robustness,
+    test_dtype_stability,
+    test_batch_scaling,
+    test_decoupled_engine,
+    test_decoupled_engine_gradient_flow,
+    test_decoupled_engine_validation,
+    test_training_block,
+    test_classifier,
+]
+
+for _legacy_fn in _LEGACY_BOOL_TESTS:
+    _legacy_fn.__test__ = False
+
+
+def _make_pytest_wrapper(fn):
+    def _wrapper() -> None:
+        assert fn(), f"{fn.__name__} returned False"
+
+    _wrapper.__name__ = f"{fn.__name__}_pytest"
+    return _wrapper
+
+
+for _legacy_fn in _LEGACY_BOOL_TESTS:
+    globals()[f"{_legacy_fn.__name__}_pytest"] = _make_pytest_wrapper(_legacy_fn)
+
+
 # ─── Main ──────────────────────────────────────────
 
 def run_all_tests() -> bool:

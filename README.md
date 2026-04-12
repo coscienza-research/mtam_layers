@@ -1,56 +1,92 @@
-# mTAM Core Layers
+# mTAM Layers
 
-This repository contains the simulative core of **mTAM** (Multi-modal Transformer Associative Memory). It provides a fully vectorized, autograd-compatible PyTorch implementation of the **Consensus Split-Bank Attention (CSA)** engine.
+Core, differentiable implementation of Multi-modal Transformer Associative Memory (mTAM), centered on the Consensus Split-Bank Attention (CSA) engine.
 
-## Overview
+## Scope
 
-mTAM extends Modern Hopfield Networks to heterogeneous, multi-modal settings by introducing a global consensus mechanism over a directed modality graph.
+This repository is the reusable library layer, not an experiments repository.
+It focuses on:
 
-The repository is structured to be used directly as a Python module:
-- `mtam.py`: The definitive implementation of the CSA engine.
-- `decoupled_engine.py`: A decoupled variation of the engine provided for ablation studies and comparisons.
-- `metrics.py`: Information-theoretic and optimization-based metrics for theoretical validation.
-- `test_mtam.py`: A comprehensive, highly capillary test suite covering edge cases, math theorems, fixed point stability, gradients, precision boundaries, and the functional behavior of training components.
-- `training/`: Contains end-to-end differentiable neural network modules (e.g., `mTAMBlock`, `mTAMEncoder`) ready for integration into deep learning pipelines.
+- mathematically faithful implementation of CSA dynamics;
+- strict runtime validation for graph and tensor contracts;
+- differentiable training components for end-to-end PyTorch integration;
+- reproducible verification tests for energy descent, fixed points, gradients, and numerical stability.
 
-## Requirements
-- Python >= 3.8
-- PyTorch >= 2.0.0
+## Core Components
 
-## Usage
-Simply drop the `mtam_layers` directory into your project and import the core classes. 
+- `mtam.py`
+    - `mTAM_Core`: vectorized CSA engine.
+    - `mTAM_Layer`: trainable wrapper with learnable query/key/value banks.
+    - `build_adjacency`, `complete_graph`: graph utilities.
+- `decoupled_engine.py`
+    - `DecoupledEngine`: per-edge decoupled attention baseline, now differentiable and input-validated.
+- `training/mtam_block.py`
+    - `mTAMBlock`, `mTAMEncoder`, `mTAMClassifier` for direct use in multimodal architectures.
+- `metrics.py`
+    - entropy, margins, overlap/reconstruction, convergence, and monotonic-energy checks.
+- `test_mtam.py`
+    - full verification suite for algebraic, dynamical, and gradient-level properties.
+
+## Installation
+
+From repository root:
+
+```bash
+pip install -e .
+```
+
+For development dependencies (pytest):
+
+```bash
+pip install -e .[dev]
+```
+
+## Minimal Usage
 
 ```python
-from mtam_layers.mtam import mTAM_Core
+from mtam_layers import mTAM_Core
 from mtam_layers.training import mTAMBlock
 
-# Initialize your core engine
 engine = mTAM_Core(
-    edges=[(0, 1), (1, 0)], 
-    L=2, 
-    d=64, 
-    beta=2.0
+        edges=[(0, 1), (1, 0)],
+        L=2,
+        d=64,
+        beta=2.0,
 )
 
-# ... or use fully trainable multi-modal transformer blocks
 block = mTAMBlock(
-    in_dims=[768, 512],
-    d=128,
-    num_patterns=64,
-    edges=[(0, 1), (1, 0)],
-    beta=4.0
+        in_dims=[768, 512],
+        d=128,
+        num_patterns=64,
+        edges=[(0, 1), (1, 0)],
+        beta=4.0,
+        T_steps=2,
 )
 ```
 
-## Running Tests
-To verify the engine against algebraic, structural, and gradient consistency properties:
+## Testing
+
+Fast direct run:
+
 ```bash
 python test_mtam.py
-# Or using pytest for verbose capillary outputs:
-pytest test_mtam.py -v
 ```
 
-## License
-Provided under the Creative Commons Attribution 4.0 International (CC-BY 4.0) license.
+Pytest run:
 
-**Author:** Andrea Ladiana
+```bash
+pytest -v test_mtam.py
+```
+
+## Engineering Guarantees
+
+- Explicit validation of graph dimensions, tensor shapes, damping range, and iteration counts.
+- Differentiable computational graph preserved in both CSA and decoupled engines.
+- Numerical stability through `logsumexp` formulation for energy terms.
+- Backward compatibility for the public API used by current tests.
+
+## License
+
+Creative Commons Attribution 4.0 International (CC BY 4.0).
+
+Author: Andrea Ladiana
