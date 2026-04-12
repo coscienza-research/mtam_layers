@@ -20,6 +20,9 @@ It focuses on:
     - `build_adjacency`, `complete_graph`: graph utilities.
 - `decoupled_engine.py`
     - `DecoupledEngine`: per-edge decoupled attention baseline, now differentiable and input-validated.
+- `entropy_gated_consensus.py`
+    - `EntropyGatedConsensus`: entropy-gated CSA (EG-CSA) with dissent-aware interpolation between shared consensus and per-modality posteriors.
+    - `EGConsensusDiagnostics`: consensus entropy, dissent entropy, gate value, modal-variance diagnostic scale, and free-energy synergy term.
 - `training/mtam_block.py`
     - `mTAMBlock`, `mTAMEncoder`, `mTAMClassifier` for direct use in multimodal architectures.
 - `metrics.py`
@@ -62,6 +65,18 @@ block = mTAMBlock(
         beta=4.0,
         T_steps=2,
 )
+
+    # Entropy-gated consensus (EG-CSA)
+    from mtam_layers import EntropyGatedConsensus
+
+    eg = EntropyGatedConsensus(core=engine, tau=0.15, kappa=12.0)
+    step = eg.step(torch.randn(4, 2, 64), torch.randn(2, 64, 128))
+
+    # Dissent-aware gate in [0, 1] for each batch element
+    gate = step.diagnostics.gate
+
+    # Per-modality gated posteriors used in the update
+    p_tilde = step.p_gated
 ```
 
 ## Testing

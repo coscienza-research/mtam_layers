@@ -27,6 +27,7 @@ import torch.nn.functional as F
 
 from mtam_layers.mtam import mTAM_Core, build_adjacency, complete_graph
 from mtam_layers.decoupled_engine import DecoupledEngine
+from mtam_layers.entropy_gated_consensus import EntropyGatedConsensus
 from mtam_layers.training.mtam_block import mTAMBlock, mTAMClassifier
 
 # ─── Helpers ────────────────────────────────────────
@@ -355,6 +356,88 @@ def test_decoupled_engine_validation() -> bool:
 
     return True
 
+
+def test_entropy_gated_closed_reduces_to_csa() -> bool:
+    """With gate closed (g≈0), EG-CSA should match standard CSA update."""
+    engine, Z, K = _random_setup(L=3, d=16, M=8, B=4, beta=4.0, seed=11)
+    eg = EntropyGatedConsensus(core=engine, tau=1e6, kappa=20.0)
+
+    Z_csa, p_csa, _ = engine.step(Z, K, damping=1.0)
+    step = eg.step(Z, K, damping=1.0)
+
+    if not torch.allclose(step.Z_new, Z_csa, atol=1e-6):
+        return False
+
+    p_broadcast = p_csa.unsqueeze(1).expand_as(step.p_gated)
+    if not torch.allclose(step.p_gated, p_broadcast, atol=1e-6):
+        return False
+
+    if step.diagnostics.gate.max().item() > 1e-3:
+        return False
+
+    return True
+
+
+def test_entropy_gated_open_tracks_local_posteriors() -> bool:
+    """In discordant conflict with tiny tau, gate should open and follow q^(a)."""
+    d = 2
+    M = 2
+    B = 1
+    edges = [(0, 0), (1, 1)]
+    engine = mTAM_Core(edges=edges, L=2, d=d, beta=8.0)
+    eg = EntropyGatedConsensus(core=engine, tau=1e-6, kappa=50.0)
+
+    K = torch.zeros(2, d, M)
+    K[0] = torch.tensor([[1.0, 0.0], [0.0, 1.0]])
+    K[1] = torch.tensor([[1.0, 0.0], [0.0, 1.0]])
+
+    Z = torch.zeros(B, 2, d)
+    Z[0, 0] = torch.tensor([10.0, 0.0])
+    Z[0, 1] = torch.tensor([0.0, 10.0])
+
+    step = eg.step(Z, K, damping=1.0)
+
+    if step.diagnostics.gate.item() < 0.99:
+        return False
+
+    if not torch.allclose(step.p_gated, step.q_local, atol=1e-3):
+        return False
+
+    if step.diagnostics.dissent_entropy.item() <= 0.0:
+        return False
+
+    return True
+
+
+def test_entropy_gated_diagnostics_consistency() -> bool:
+    """Validate EG-CSA diagnostics domain constraints and algebraic consistency."""
+    engine, Z, K = _random_setup(L=4, d=12, M=9, B=5, beta=3.0, seed=123)
+    eg = EntropyGatedConsensus(core=engine, tau=0.2, kappa=10.0)
+    step = eg.step(Z, K, damping=1.0)
+
+    diag = step.diagnostics
+
+    if diag.dissent_entropy.min().item() < -1e-8:
+        return False
+    if diag.consensus_entropy.min().item() < -1e-8:
+        return False
+    if diag.weighted_modal_variance.min().item() < -1e-8:
+        return False
+    if diag.gate.min().item() < -1e-8 or diag.gate.max().item() > 1.0 + 1e-8:
+        return False
+
+    expected = (engine.beta_tilde ** 2) * diag.weighted_modal_variance
+    if not torch.allclose(diag.dissent_upper_bound, expected, atol=1e-7):
+        return False
+
+    p_sum = step.p_gated.sum(dim=-1)
+    if not torch.allclose(p_sum, torch.ones_like(p_sum), atol=1e-6):
+        return False
+
+    if not torch.isfinite(diag.synergy).all():
+        return False
+    return True
+
 # ─── Test 14: Training Module (mTAM Block) ─────────
 
 def test_training_block() -> bool:
@@ -429,6 +512,9 @@ _LEGACY_BOOL_TESTS = [
     test_decoupled_engine,
     test_decoupled_engine_gradient_flow,
     test_decoupled_engine_validation,
+    test_entropy_gated_closed_reduces_to_csa,
+    test_entropy_gated_open_tracks_local_posteriors,
+    test_entropy_gated_diagnostics_consistency,
     test_training_block,
     test_classifier,
 ]
@@ -468,6 +554,9 @@ def run_all_tests() -> bool:
         ("Decoupled Engine Check", test_decoupled_engine),
         ("Decoupled Engine Gradient Flow", test_decoupled_engine_gradient_flow),
         ("Decoupled Engine Validation", test_decoupled_engine_validation),
+        ("Entropy-Gated: closed gate = CSA", test_entropy_gated_closed_reduces_to_csa),
+        ("Entropy-Gated: open gate follows local q", test_entropy_gated_open_tracks_local_posteriors),
+        ("Entropy-Gated: diagnostics consistency", test_entropy_gated_diagnostics_consistency),
         ("Training Block (Forward/Backward)", test_training_block),
         ("Classifier End-to-End", test_classifier),
     ]
