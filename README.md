@@ -38,7 +38,7 @@ From repository root:
 pip install -e .
 ```
 
-For development dependencies (pytest):
+For development dependencies (pytest, coverage, ruff):
 
 ```bash
 pip install -e .[dev]
@@ -47,39 +47,80 @@ pip install -e .[dev]
 ## Minimal Usage
 
 ```python
-from mtam_layers import mTAM_Core
+import torch
+
+from mtam_layers import EntropyGatedConsensus, mTAM_Core
 from mtam_layers.training import mTAMBlock
 
 engine = mTAM_Core(
-        edges=[(0, 1), (1, 0)],
-        L=2,
-        d=64,
-        beta=2.0,
+    edges=[(0, 1), (1, 0)],
+    L=2,
+    d=64,
+    beta=2.0,
 )
 
 block = mTAMBlock(
-        in_dims=[768, 512],
-        d=128,
-        num_patterns=64,
-        edges=[(0, 1), (1, 0)],
-        beta=4.0,
-        T_steps=2,
+    in_dims=[768, 512],
+    d=128,
+    num_patterns=64,
+    edges=[(0, 1), (1, 0)],
+    beta=4.0,
+    T_steps=2,
 )
 
-    # Entropy-gated consensus (EG-CSA)
-    from mtam_layers import EntropyGatedConsensus
+# Entropy-gated consensus (EG-CSA)
+eg = EntropyGatedConsensus(core=engine, tau=0.15, kappa=12.0)
+step = eg.step(torch.randn(4, 2, 64), torch.randn(2, 64, 128))
 
-    eg = EntropyGatedConsensus(core=engine, tau=0.15, kappa=12.0)
-    step = eg.step(torch.randn(4, 2, 64), torch.randn(2, 64, 128))
+# Dissent-aware gate in [0, 1] for each batch element
+gate = step.diagnostics.gate
 
-    # Dissent-aware gate in [0, 1] for each batch element
-    gate = step.diagnostics.gate
-
-    # Per-modality gated posteriors used in the update
-    p_tilde = step.p_gated
+# Per-modality gated posteriors used in the update
+p_tilde = step.p_gated
 ```
 
-## Testing
+## Quality Gates
+
+Ruff linting:
+
+```bash
+ruff check .
+```
+
+Pytest with enforced coverage threshold (>=95%):
+
+```bash
+pytest
+```
+
+Direct script suite (legacy runner, useful for theorem-style console report):
+
+```bash
+python test_mtam.py
+```
+
+## Reproducibility
+
+- CI enforces lint + coverage gates on Python 3.10, 3.11, and 3.12.
+- Coverage threshold is configured in project metadata and enforced automatically.
+- Deterministic execution guidelines are provided in `REPRODUCIBILITY.md`.
+
+Quick deterministic setup (PowerShell):
+
+```powershell
+$env:PYTHONHASHSEED = "0"
+```
+
+In Python scripts:
+
+```python
+import torch
+
+torch.manual_seed(0)
+torch.use_deterministic_algorithms(True)
+```
+
+## Testing (Legacy Commands)
 
 Fast direct run:
 
