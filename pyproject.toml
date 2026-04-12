@@ -3,6 +3,27 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
-addopts = "-ra -q"
+addopts = "-ra -q --cov=. --cov-report=term-missing --cov-fail-under=95"
 testpaths = ["."]
 python_files = ["test_*.py"]
+
+[tool.coverage.run]
+branch = true
+source = ["."]
+omit = [
+	"test_*.py",
+	"setup.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 95
+skip_covered = false
+precision = 2
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

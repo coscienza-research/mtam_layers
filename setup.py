@@ -18,5 +18,5 @@ setup(
     package_data={"mtam_layers": ["py.typed"]},
     include_package_data=True,
     install_requires=["torch>=2.0"],
-    extras_require={"dev": ["pytest>=8.0"]},
+    extras_require={"dev": ["pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.11.0"]},
 )
