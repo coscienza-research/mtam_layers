@@ -12,8 +12,7 @@ from .entropy_gated_consensus import (
 )
 from .mtam import build_adjacency, complete_graph, mTAM_Core, mTAM_Layer
 from .training import mTAMBlock, mTAMClassifier, mTAMEncoder
-
-__version__ = "0.1.0"
+from .version import __version__
 
 __all__ = [
     "__version__",
