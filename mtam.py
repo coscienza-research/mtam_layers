@@ -46,11 +46,10 @@ Author : Andrea Ladiana
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch import Tensor
 
 
@@ -81,6 +80,8 @@ def build_adjacency(
     A     : (L, L) binary adjacency
     A_bar : (L, L) row-stochastic
     """
+    if L <= 0:
+        raise ValueError(f"L must be >= 1, got {L}.")
     if len(edges) == 0:
         raise ValueError("Edge list is empty.")
     A = torch.zeros(L, L, device=device, dtype=dtype)
@@ -104,6 +105,10 @@ def complete_graph(L: int, self_loops: bool = False) -> List[Tuple[int, int]]:
 
     Set ``self_loops=True`` for L = 1 (auto-associative / standard MHN).
     """
+    if L <= 0:
+        raise ValueError(f"L must be >= 1, got {L}.")
+    if L == 1 and not self_loops:
+        raise ValueError("L=1 requires self_loops=True to avoid an empty graph.")
     if self_loops:
         return [(a, b) for a in range(L) for b in range(L)]
     return [(a, b) for a in range(L) for b in range(L) if a != b]
@@ -146,7 +151,11 @@ class mTAM_Core(nn.Module):
         use_shift: bool = True,
     ) -> None:
         super().__init__()
-        if beta <= 0:
+        if L <= 0:
+            raise ValueError(f"L must be >= 1, got {L}.")
+        if d <= 0:
+            raise ValueError(f"d must be >= 1, got {d}.")
+        if not math.isfinite(beta) or beta <= 0:
             raise ValueError("beta must be > 0.")
         self.L = int(L)
         self.d = int(d)
@@ -157,6 +166,54 @@ class mTAM_Core(nn.Module):
         A, A_bar = build_adjacency(edges, L)
         self.register_buffer("A", A)        # (L, L)  binary
         self.register_buffer("A_bar", A_bar)  # (L, L)  row-stochastic
+
+    def _validate_Z(self, Z: Tensor) -> None:
+        if Z.dim() != 3:
+            raise ValueError(f"Z must have shape (B, L, d), got {tuple(Z.shape)}.")
+        if Z.size(1) != self.L or Z.size(2) != self.d:
+            raise ValueError(
+                f"Z must have shape (B, {self.L}, {self.d}), got {tuple(Z.shape)}."
+            )
+
+    def _validate_K(self, K: Tensor) -> None:
+        if K.dim() != 3:
+            raise ValueError(f"K must have shape (L, d, M), got {tuple(K.shape)}.")
+        if K.size(0) != self.L or K.size(1) != self.d:
+            raise ValueError(
+                f"K must have shape ({self.L}, {self.d}, M), got {tuple(K.shape)}."
+            )
+        if K.size(2) <= 0:
+            raise ValueError("K must contain at least one pattern (M >= 1).")
+
+    def _validate_K_eff(self, K_eff: Tensor, expected_M: int) -> None:
+        if K_eff.dim() != 3:
+            raise ValueError(
+                f"K_eff must have shape (L, d, M), got {tuple(K_eff.shape)}."
+            )
+        if K_eff.size(0) != self.L or K_eff.size(1) != self.d:
+            raise ValueError(
+                f"K_eff must have shape ({self.L}, {self.d}, M), got {tuple(K_eff.shape)}."
+            )
+        if K_eff.size(2) != expected_M:
+            raise ValueError(
+                f"K_eff has M={K_eff.size(2)} but expected M={expected_M}."
+            )
+
+    @staticmethod
+    def _validate_S(S: Tensor) -> None:
+        if S.dim() != 2:
+            raise ValueError(f"S must have shape (B, M), got {tuple(S.shape)}.")
+        if S.size(1) <= 0:
+            raise ValueError("S must contain at least one pattern score (M >= 1).")
+
+    @staticmethod
+    def _validate_p(p: Tensor, expected_M: Optional[int] = None) -> None:
+        if p.dim() != 2:
+            raise ValueError(f"p must have shape (B, M), got {tuple(p.shape)}.")
+        if p.size(1) <= 0:
+            raise ValueError("p must contain at least one pattern probability (M >= 1).")
+        if expected_M is not None and p.size(1) != expected_M:
+            raise ValueError(f"p has M={p.size(1)} but expected M={expected_M}.")
 
     # ── helpers ──────────────────────────────────────
 
@@ -183,6 +240,7 @@ class mTAM_Core(nn.Module):
         -------
         K_eff : (L, d, M)
         """
+        self._validate_K(K)
         return torch.einsum("ab, bim -> aim", self.A_bar, K)
 
     # ── score ───────────────────────────────────────
@@ -204,8 +262,12 @@ class mTAM_Core(nn.Module):
         -------
         S : (B, M)
         """
+        self._validate_Z(Z)
+        self._validate_K(K)
         if K_eff is None:
             K_eff = self.effective_keys(K)
+        else:
+            self._validate_K_eff(K_eff, expected_M=K.size(2))
         return torch.einsum("nai, aim -> nm", Z, K_eff)
 
     # ── consensus ───────────────────────────────────
@@ -223,6 +285,7 @@ class mTAM_Core(nn.Module):
         -------
         p : (B, M)  (probability simplex)
         """
+        self._validate_S(S)
         return torch.softmax(self.beta_tilde * S, dim=-1)
 
     # ── update ──────────────────────────────────────
@@ -246,8 +309,12 @@ class mTAM_Core(nn.Module):
         -------
         Z_new : (B, L, d)
         """
+        self._validate_K(K)
+        self._validate_p(p, expected_M=K.size(2))
         if K_eff is None:
             K_eff = self.effective_keys(K)
+        else:
+            self._validate_K_eff(K_eff, expected_M=K.size(2))
         return torch.einsum("aim, nm -> nai", K_eff, p)
 
     # ── energy (Lyapunov) ───────────────────────────
@@ -278,10 +345,14 @@ class mTAM_Core(nn.Module):
         -------
         E : (B,)  per-batch energy  (differentiable)
         """
+        self._validate_Z(Z)
         if S is None:
             if K is None:
                 raise ValueError("Provide either S or K to compute energy.")
+            self._validate_K(K)
             S = self.compute_scores(Z, K)
+        else:
+            self._validate_S(S)
 
         bt = self.beta_tilde
         M = S.shape[-1]
@@ -319,6 +390,10 @@ class mTAM_Core(nn.Module):
         -------
         X : (B, L, d)
         """
+        if V.dim() != 3:
+            raise ValueError(f"V must have shape (L, d, M), got {tuple(V.shape)}.")
+        m = V.size(2)
+        mTAM_Core._validate_p(p, expected_M=m)
         return torch.einsum("aim, nm -> nai", V, p)
 
     # ── single CCCP step ────────────────────────────
@@ -352,6 +427,10 @@ class mTAM_Core(nn.Module):
         p     : (B, M)
         S     : (B, M)
         """
+        if not (0.0 < damping <= 1.0):
+            raise ValueError(f"damping must be in (0, 1], got {damping}.")
+        self._validate_Z(Z)
+        self._validate_K(K)
         K_eff = self.effective_keys(K)                # pre-compute once
         S = self.compute_scores(Z, K, K_eff=K_eff)   # [eq:global_score]
         p = self.compute_consensus(S)                 # [eq:consensus_p]
@@ -391,12 +470,19 @@ class mTAM_Core(nn.Module):
         p_last : (B, M)    — final consensus
         traj   : dict ({'energy': [...], 'p': [...]}) or None
         """
+        if T < 1:
+            raise ValueError(f"T must be >= 1, got {T}.")
+        if not (0.0 < damping <= 1.0):
+            raise ValueError(f"damping must be in (0, 1], got {damping}.")
+        self._validate_Z(Z)
+        self._validate_K(K)
+
         traj: Optional[Dict[str, List[Tensor]]] = None
         if return_trajectory:
             traj = {"energy": [], "p": []}
 
         p_last: Optional[Tensor] = None
-        for _ in range(max(1, T)):
+        for _ in range(T):
             if traj is not None:
                 traj["energy"].append(
                     self.compute_energy(Z, K=K).detach()
@@ -496,6 +582,15 @@ class mTAM_Layer(nn.Module):
         """
         if len(x_list) != self.L:
             raise ValueError(f"Expected {self.L} inputs, got {len(x_list)}.")
+
+        if T < 1:
+            raise ValueError(f"T must be >= 1, got {T}.")
+        if not (0.0 < damping <= 1.0):
+            raise ValueError(f"damping must be in (0, 1], got {damping}.")
+
+        batch_sizes = [x.size(0) for x in x_list]
+        if len(set(batch_sizes)) != 1:
+            raise ValueError(f"All modality inputs must share batch size, got {batch_sizes}.")
 
         # Project to query space:  z^{(a)} = W_Q^{(a)} x^{(a)}
         Z = torch.stack(
