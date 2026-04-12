@@ -38,7 +38,7 @@ From repository root:
 pip install -e .
 ```
 
-For development dependencies (pytest, coverage, ruff):
+For development dependencies (pytest, coverage, ruff, mypy):
 
 ```bash
 pip install -e .[dev]
@@ -85,6 +85,12 @@ Ruff linting:
 
 ```bash
 ruff check .
+```
+
+Type checking:
+
+```bash
+mypy
 ```
 
 Pytest with enforced coverage threshold (>=95%):
@@ -141,8 +147,32 @@ pytest -v test_mtam.py
 - Numerical stability through `logsumexp` formulation for energy terms.
 - Backward compatibility for the public API used by current tests.
 
+## Citation
+
+This repository includes machine-readable citation metadata in `CITATION.cff`.
+
+If you use this software, please cite the workshop paper:
+
+```bibtex
+@inproceedings{ladiana2026thermodynamic,
+    title={Thermodynamic Binding: Freezing Chimeric States in Multi-Modal Associative Memories},
+    author={Agliari, Elena and Barra, Adriano and Ladiana, Andrea and Lepre, Andrea},
+    booktitle={New Frontiers in Associative Memories-Workshop at ICLR 2026},
+    year={2026}
+}
+```
+
+## Governance
+
+Project policies and contribution process are documented in:
+
+- `CONTRIBUTING.md`
+- `CODE_OF_CONDUCT.md`
+- `SECURITY.md`
+- `CHANGELOG.md`
+
 ## License
 
-Creative Commons Attribution 4.0 International (CC BY 4.0).
+Apache License 2.0.
 
 Author: Andrea Ladiana

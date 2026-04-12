@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the following workshop paper."
+title: "mTAM Layers"
+version: 0.2.0
+authors:
+  - family-names: Ladiana
+    given-names: Andrea
+  - family-names: Agliari
+    given-names: Elena
+  - family-names: Barra
+    given-names: Adriano
+  - family-names: Lepre
+    given-names: Andrea
+preferred-citation:
+  type: conference-paper
+  title: "Thermodynamic Binding: Freezing Chimeric States in Multi-Modal Associative Memories"
+  authors:
+    - family-names: Agliari
+      given-names: Elena
+    - family-names: Barra
+      given-names: Adriano
+    - family-names: Ladiana
+      given-names: Andrea
+    - family-names: Lepre
+      given-names: Andrea
+  year: 2026
+  booktitle: "New Frontiers in Associative Memories-Workshop at ICLR 2026"
+  citation-key: ladiana2026thermodynamic
