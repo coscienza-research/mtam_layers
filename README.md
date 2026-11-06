@@ -5,7 +5,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C.svg?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Tests](https://img.shields.io/badge/tests-26%20passed-brightgreen.svg)](test_mtam.py)
-[![Coverage](https://img.shields.io/badge/coverage-%E2%89%A595%25-brightgreen.svg)](test_quality_suite.py)
+[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](test_quality_suite.py)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Type checking: mypy](https://img.shields.io/badge/type%20checking-mypy-blue.svg)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
