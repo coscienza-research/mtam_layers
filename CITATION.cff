@@ -1,7 +1,9 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite the following workshop paper."
-title: "mTAM Layers"
+message: "If you use this software or the mTAM architecture, please cite the following paper."
+title: "mTAM Layers: Multi-modal Transformer Associative Memory"
 version: 0.2.0
+repository-code: "https://github.com/coscienza-research/mtam_layers"
+license: MIT
 authors:
   - family-names: Ladiana
     given-names: Andrea
@@ -24,5 +26,5 @@ preferred-citation:
     - family-names: Lepre
       given-names: Andrea
   year: 2026
-  booktitle: "New Frontiers in Associative Memories-Workshop at ICLR 2026"
+  booktitle: "New Frontiers in Associative Memories - Workshop at ICLR 2026"
   citation-key: ladiana2026thermodynamic
